@@ -74,6 +74,23 @@ public class CalculatorTest {
 		Assert.assertEquals(Math.PI, Calculator.calculate("arccos(-0.5*2)"));
 		Assert.assertEquals(2d, Calculator.calculate("arccos(cos(2)+arccos(1))"));
 		Assert.assertEquals(Math.exp(2), Calculator.calculate("exp(2)"));
+		Assert.assertEquals(2d, Calculator.calculate("exp(ln(2))"));
+		Assert.assertEquals(1d, Calculator.calculate("e^ln(1)"));
 	}
-
+	
+	@Test
+	public void functions2() throws CalculationException {
+		Assert.assertEquals(2d, Calculator.calculate("max(2, exp(-5))"));
+		Assert.assertEquals(2d, Calculator.calculate("max((1+(0.5+0.5)), 0)"));
+		Assert.assertEquals(Math.PI-1d, Calculator.calculate("max(e, pi) - min(2, 1)"));
+		Assert.assertEquals(0d, Calculator.calculate("2 - exp(log(e, 2))"));
+		Assert.assertEquals(1d, Calculator.calculate("e^log(e, 1)"));
+	}
+	
+	@Test
+	public void customFunction() throws CalculationException {
+		Calculator.registerFunction(new TestFunction());
+		Assert.assertEquals(3d, Calculator.calculate("maxof3(1,2,3)"));
+		Assert.assertEquals(3d, Calculator.calculate("maxof3(max(0, 1), exp(0-log(2, 3)), 3)"));
+	}
 }

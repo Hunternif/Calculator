@@ -1,5 +1,6 @@
 package hunternif.rpn;
 
+import hunternif.rpn.token.BasicFunction;
 import hunternif.rpn.token.Token;
 import hunternif.rpn.token.TokenBracket;
 import hunternif.rpn.token.TokenComputable;
@@ -20,27 +21,30 @@ import java.util.regex.Pattern;
 public class Calculator {
 	private static final Pattern numberPattern = Pattern.compile("\\A(-?\\d+(\\.\\d*)?).*");
 	
-	private static final List<Token> registeredTokens = new ArrayList<>();
+	/** For 1-char tokens that can't overlap. */
+	private static final List<Token> basicTokens = new ArrayList<>();
+	/** For tokens that can overlap, e.g. "max" and "maxof3". */
+	private static final List<Token> wordTokens = new ArrayList<>();
 	
 	public static void registerFunction(TokenFunction func) {
-		registeredTokens.add(func);
+		wordTokens.add(func);
 	}
 	public static void registerConstant(TokenConstant constant) {
-		registeredTokens.add(constant);
+		wordTokens.add(constant);
 	}
 	
 	static {
 		for (TokenOperator op : TokenOperator.operators) {
-			registeredTokens.add(op);
+			basicTokens.add(op);
 		}
-		for (TokenFunction func : TokenFunction.functions) {
-			registeredTokens.add(func);
+		for (TokenFunction func : BasicFunction.functions) {
+			registerFunction(func);
 		}
 		registerConstant(new TokenConstant("pi", Math.PI));
 		registerConstant(new TokenConstant("e", Math.E));
-		registeredTokens.add(TokenBracket.LEFT);
-		registeredTokens.add(TokenBracket.RIGHT);
-		registeredTokens.add(TokenSeparator.COMMA);
+		basicTokens.add(TokenBracket.LEFT);
+		basicTokens.add(TokenBracket.RIGHT);
+		basicTokens.add(TokenSeparator.COMMA);
 	}
 	
 	public static double calculate(String input) throws CalculationException {
@@ -68,14 +72,30 @@ public class Calculator {
 				parsed = true;
 			}
 			
-			// Try operators, constants, functions, brackets and commas
-			for (Token token : registeredTokens) {
+			// Try basic tokens: operators, brackets and commas
+			for (Token token : basicTokens) {
 				if (input.startsWith(token.notation)) {
 					input = input.substring(token.notation.length());
 					tokens.add(token);
 					parsed = true;
 					break;
 				}
+			}
+			
+			// Try word tokens: constants and functions.
+			// As they can overlap, only apply token with the longest notation
+			Token longestToken = null;
+			for (Token token : wordTokens) {
+				if (input.startsWith(token.notation)) {
+					if (longestToken == null || longestToken.notation.length() < token.notation.length()) {
+						longestToken = token;
+					}
+				}
+			}
+			if (longestToken != null) {
+				input = input.substring(longestToken.notation.length());
+				tokens.add(longestToken);
+				parsed = true;
 			}
 			
 			if (!parsed) {
@@ -157,6 +177,14 @@ public class Calculator {
 					} else {
 						throw new CalculationException("Unexpected function token: " + curToken.notation);
 					}
+				} else if (curToken == TokenSeparator.COMMA) {
+					if (headNode.parent != null && headNode.parent.data == TokenBracket.LEFT) {
+						headNode = headNode.parent;
+					} else {
+						throw new CalculationException("Unexpected comma token");
+					}
+				} else {
+					throw new CalculationException("Unexpected token: " + curToken.notation);
 				}
 			}
 		}
