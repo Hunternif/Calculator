@@ -42,12 +42,12 @@ public class CalculatorTest {
 	@Test
 	public void unknownFunction() {
 		try {
-			Calculator.calculate("cos(2)");
+			Calculator.calculate("qwerty(2)");
 		} catch (CalculationException e) {
 			// This is expected and correct.
 			return;
 		}
-		Assert.fail("Didn't notice unknown function cos");
+		Assert.fail("Didn't notice unknown function qwerty");
 	}
 	
 	@Test
@@ -62,6 +62,18 @@ public class CalculatorTest {
 		Assert.assertEquals(Math.E, Calculator.calculate("e"));
 		Assert.assertEquals(Math.PI*Math.E, Calculator.calculate("pi*e"));
 		Assert.assertEquals(Math.pow(2d*Math.PI, 3d) - Math.E/2d, Calculator.calculate("(2*pi)^3-e/2"));
+	}
+	
+	@Test
+	public void powerOfNegative() throws CalculationException {
+		Assert.assertTrue(Double.isNaN(Calculator.calculate("(-1.5)^1.3")));
+	}
+	
+	@Test
+	public void functions() throws CalculationException {
+		Assert.assertEquals(Math.PI, Calculator.calculate("arccos(-0.5*2)"));
+		Assert.assertEquals(2d, Calculator.calculate("arccos(cos(2)+arccos(1))"));
+		Assert.assertEquals(Math.exp(2), Calculator.calculate("exp(2)"));
 	}
 
 }

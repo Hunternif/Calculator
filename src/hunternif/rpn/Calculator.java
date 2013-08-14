@@ -33,6 +33,9 @@ public class Calculator {
 		for (TokenOperator op : TokenOperator.operators) {
 			registeredTokens.add(op);
 		}
+		for (TokenFunction func : TokenFunction.functions) {
+			registeredTokens.add(func);
+		}
 		registerConstant(new TokenConstant("pi", Math.PI));
 		registerConstant(new TokenConstant("e", Math.E));
 		registeredTokens.add(TokenBracket.LEFT);
@@ -106,7 +109,6 @@ public class Calculator {
 					}
 					if (headNode.parent != null && headNode.parent.data instanceof TokenComputable
 							&& !((TokenComputable)headNode.parent.data).isInfix()) {
-						//FIXME test this non-infix function parsing
 						Node<Token> parent = headNode.parent;
 						parent.absorbNode(headNode);
 						headNode = parent;
