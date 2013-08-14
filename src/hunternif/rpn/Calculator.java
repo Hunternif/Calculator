@@ -59,6 +59,11 @@ public class Calculator {
 		// Remove spaces:
 		input = input.replaceAll("\\s", "");
 		
+		// Add the argument '0' to unary operator '-':
+		input = input.replaceAll("\\A-", "0-");
+		input = input.replaceAll("\\(-", "(0-");
+		input = input.replaceAll(",-", ",0-");
+		
 		while (!input.isEmpty()) {
 			boolean parsed = false;
 			

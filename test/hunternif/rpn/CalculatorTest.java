@@ -93,4 +93,10 @@ public class CalculatorTest {
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(1,2,3)"));
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(max(0, 1), exp(0-log(2, 3)), 3)"));
 	}
+	
+	@Test
+	public void unaryMinus() throws CalculationException {
+		Assert.assertEquals(-1d, Calculator.calculate("-cos(0)"));
+		Assert.assertEquals(-1d, Calculator.calculate("max(-1, -2)"));
+	}
 }
