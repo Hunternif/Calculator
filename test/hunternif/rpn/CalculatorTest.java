@@ -4,10 +4,10 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-public class RPNTest {
+public class CalculatorTest {
 
 	@Test
-	public void noBracketArithmetic() throws RPNCalculationException {
+	public void noBracketArithmetic() throws CalculationException {
 		Assert.assertEquals(0.1d, Calculator.calculate("-0.1 + 0.2"));
 		Assert.assertEquals(4d, Calculator.calculate("2 +\n2"));
 		Assert.assertEquals(0d, Calculator.calculate("-1 + 1"));
@@ -19,7 +19,7 @@ public class RPNTest {
 	}
 	
 	@Test
-	public void bracketArithmetic() throws RPNCalculationException {
+	public void bracketArithmetic() throws CalculationException {
 		Assert.assertEquals(4d, Calculator.calculate("(((2) + 2))"));
 		Assert.assertEquals(2d+2d*(2d-3d*(2d-1d)), Calculator.calculate("2+2*(2-3*(2-1))"));
 		Assert.assertEquals((1d+2d)*5d/2d - 0.5d*(1d+1d/(1d-(5d-5d))), Calculator.calculate("(1+2)*5/2 - 0.5*(1+1/(1-(5-5)))"));
@@ -32,7 +32,7 @@ public class RPNTest {
 	public void emptyBracket() {
 		try {
 			Assert.assertEquals(0d, Calculator.calculate("()"));
-		} catch (RPNCalculationException e) {
+		} catch (CalculationException e) {
 			// This is expected and correct.
 			return;
 		}
@@ -43,7 +43,7 @@ public class RPNTest {
 	public void unknownFunction() {
 		try {
 			Calculator.calculate("cos(2)");
-		} catch (RPNCalculationException e) {
+		} catch (CalculationException e) {
 			// This is expected and correct.
 			return;
 		}
@@ -51,13 +51,13 @@ public class RPNTest {
 	}
 	
 	@Test
-	public void divideByZero() throws RPNCalculationException {
+	public void divideByZero() throws CalculationException {
 		Assert.assertEquals(Double.POSITIVE_INFINITY, Calculator.calculate("1/0"));
 		Assert.assertEquals(Double.POSITIVE_INFINITY, Calculator.calculate("1/0 + 1"));
 	}
 	
 	@Test
-	public void constants() throws RPNCalculationException {
+	public void constants() throws CalculationException {
 		Assert.assertEquals(Math.PI, Calculator.calculate("pi"));
 		Assert.assertEquals(Math.E, Calculator.calculate("e"));
 		Assert.assertEquals(Math.PI*Math.E, Calculator.calculate("pi*e"));

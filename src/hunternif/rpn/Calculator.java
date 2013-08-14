@@ -40,14 +40,14 @@ public class Calculator {
 		registeredTokens.add(TokenSeparator.COMMA);
 	}
 	
-	public static double calculate(String input) throws RPNCalculationException {
+	public static double calculate(String input) throws CalculationException {
 		List<Token> tokens = tokenize(input);
 		Tree<Token> tree = buildSyntaxTree(tokens);
 		Stack<Token> rpnStack = tree.toStackPostOrder(); 
 		return calculateRPN(rpnStack);
 	}
 	
-	protected static List<Token> tokenize(String input) throws RPNCalculationException {
+	protected static List<Token> tokenize(String input) throws CalculationException {
 		List<Token> tokens = new ArrayList<>();
 		// Remove spaces:
 		input = input.replaceAll("\\s", "");
@@ -76,13 +76,13 @@ public class Calculator {
 			}
 			
 			if (!parsed) {
-				throw new RPNCalculationException("Unknown expression: " + input);
+				throw new CalculationException("Unknown expression: " + input);
 			}
 		}
 		return tokens;
 	}
 	
-	protected static Tree<Token> buildSyntaxTree(List<Token> list) throws RPNCalculationException {
+	protected static Tree<Token> buildSyntaxTree(List<Token> list) throws CalculationException {
 		Node<Token> headNode = new Node<Token>(null, null);
 		for (Token curToken : list) {
 			if (headNode.data == null) {
@@ -94,14 +94,14 @@ public class Calculator {
 						headNode.addChild(child);
 						headNode = child;
 					} else {
-						throw new RPNCalculationException("Unexpected opening bracket token");
+						throw new CalculationException("Unexpected opening bracket token");
 					}
 				} else if (curToken == TokenBracket.RIGHT) {
 					// Go up until a matching opening bracket is found:
 					while (headNode.data != TokenBracket.LEFT) {
 						headNode = headNode.parent;
 						if (headNode == null) {
-							throw new RPNCalculationException("Unexpected closing bracket token");
+							throw new CalculationException("Unexpected closing bracket token");
 						}
 					}
 					if (headNode.parent != null && headNode.parent.data instanceof TokenComputable
@@ -122,7 +122,7 @@ public class Calculator {
 						Node<Token> childNode = new Node<Token>(headNode, curToken);
 						headNode.addChild(childNode);
 					} else {
-						throw new RPNCalculationException("Unexpected value token: " + curToken.notation);
+						throw new CalculationException("Unexpected value token: " + curToken.notation);
 					}
 				} else if (curToken instanceof TokenComputable) {
 					if (headNode.data instanceof TokenValue) {
@@ -153,7 +153,7 @@ public class Calculator {
 							headNode = parentFunctionNode;
 						}
 					} else {
-						throw new RPNCalculationException("Unexpected function token: " + curToken.notation);
+						throw new CalculationException("Unexpected function token: " + curToken.notation);
 					}
 				}
 			}
@@ -167,7 +167,7 @@ public class Calculator {
 		return tree;
 	}
 		
-	protected static double calculateRPN(Stack<Token> baseRPNStack) throws RPNCalculationException {
+	protected static double calculateRPN(Stack<Token> baseRPNStack) throws CalculationException {
 		Stack<Token> calcStack = new Stack<>();
 		while (!baseRPNStack.isEmpty()) {
 			Token node = baseRPNStack.pop();
@@ -176,7 +176,7 @@ public class Calculator {
 			} else if (node instanceof TokenComputable) {
 				TokenComputable function = (TokenComputable) node;
 				if (calcStack.size() < function.args) {
-					throw new RPNCalculationException("Wrong number of arguments " +
+					throw new CalculationException("Wrong number of arguments " +
 							calcStack.size() + " to function " + function.notation);
 				}
 				
@@ -185,7 +185,7 @@ public class Calculator {
 				for (int i = 0; i < function.args; i++) {
 					Token paramNode = calcStack.pop();
 					if (!(paramNode instanceof TokenValue)) {
-						throw new RPNCalculationException("Parameter node is not a value");
+						throw new CalculationException("Parameter node is not a value");
 					}
 					params[i] = ((TokenValue)paramNode).value;
 				}
@@ -196,11 +196,11 @@ public class Calculator {
 			}
 		}
 		if (calcStack.size() != 1) {
-			throw new RPNCalculationException("Stack size is " + calcStack.size());
+			throw new CalculationException("Stack size is " + calcStack.size());
 		}
 		Token node = calcStack.pop();
 		if (!(node instanceof TokenValue)) {
-			throw new RPNCalculationException("Last node is not a value");
+			throw new CalculationException("Last node is not a value");
 		}
 		return ((TokenValue)node).value;
 	}
