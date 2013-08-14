@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Calculator {
-	private static final Pattern numberPattern = Pattern.compile("\\A(-?\\d+(\\.\\d*)?).*");
+	private static final Pattern numberPattern = Pattern.compile("\\A(\\d+(\\.\\d*)?).*");
 	
 	/** For 1-char tokens that can't overlap. */
 	private static final List<Token> basicTokens = new ArrayList<>();

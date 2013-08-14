@@ -26,6 +26,7 @@ public class CalculatorTest {
 		Assert.assertEquals(9d, Calculator.calculate("(1+2)*3"));
 		Assert.assertEquals(9d, Calculator.calculate("3*(1+2)"));
 		Assert.assertEquals(7d, Calculator.calculate("1+2*3"));
+		Assert.assertEquals(1d, Calculator.calculate("(1+2)-2"));
 	}
 	
 	@Test
