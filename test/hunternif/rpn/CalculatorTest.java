@@ -90,7 +90,7 @@ public class CalculatorTest {
 	
 	@Test
 	public void customFunction() throws CalculationException {
-		Calculator.registerFunction(new TestFunction());
+		Calculator.registerToken(new TestFunction());
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(1,2,3)"));
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(max(0, 1), exp(0-log(2, 3)), 3)"));
 	}

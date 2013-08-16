@@ -3,8 +3,8 @@ package hunternif.rpn.token;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Binary operator. */
-public final class TokenOperator extends TokenComputable {
+/** Binary infix operator. */
+public class TokenOperator extends TokenComputable {
 	
 	private static enum EnumOperator {
 		ADD("+", 0), SUBTRACT("-", 0),
@@ -28,8 +28,12 @@ public final class TokenOperator extends TokenComputable {
 	private EnumOperator type;
 	
 	private TokenOperator(EnumOperator type) {
-		super(type.notation, 2, type.precedence);
+		this(type.notation, type.precedence);
 		this.type = type;
+	}
+	
+	public TokenOperator(String notation, int precedence) {
+		super(notation, 2, precedence);
 	}
 	
 	@Override

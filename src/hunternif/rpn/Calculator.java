@@ -2,18 +2,18 @@ package hunternif.rpn;
 
 import hunternif.rpn.token.BasicFunction;
 import hunternif.rpn.token.Token;
-import hunternif.rpn.token.TokenBracket;
 import hunternif.rpn.token.TokenComputable;
 import hunternif.rpn.token.TokenConstant;
 import hunternif.rpn.token.TokenFunction;
 import hunternif.rpn.token.TokenOperator;
-import hunternif.rpn.token.TokenSeparator;
 import hunternif.rpn.token.TokenValue;
 import hunternif.util.Tree;
 import hunternif.util.Tree.Node;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,30 +21,31 @@ import java.util.regex.Pattern;
 public class Calculator {
 	private static final Pattern numberPattern = Pattern.compile("\\A(\\d+(\\.\\d*)?).*");
 	
-	/** For 1-char tokens that can't overlap. */
-	private static final List<Token> basicTokens = new ArrayList<>();
-	/** For tokens that can overlap, e.g. "max" and "maxof3". */
-	private static final List<Token> wordTokens = new ArrayList<>();
+	/** Maps to tokens first character of their notation. This provides for faster token search. */
+	private static final Map<Character, List<Token>> tokenFirstCharMap = new Hashtable<>();
 	
-	public static void registerFunction(TokenFunction func) {
-		wordTokens.add(func);
-	}
-	public static void registerConstant(TokenConstant constant) {
-		wordTokens.add(constant);
+	public static void registerToken(Token token) {
+		Character c = token.notation.charAt(0);
+		List<Token> list = tokenFirstCharMap.get(c);
+		if (list == null) {
+			list = new ArrayList<>();
+			tokenFirstCharMap.put(c, list);
+		}
+		list.add(token);
 	}
 	
 	static {
 		for (TokenOperator op : TokenOperator.operators) {
-			basicTokens.add(op);
+			registerToken(op);
 		}
 		for (TokenFunction func : BasicFunction.functions) {
-			registerFunction(func);
+			registerToken(func);
 		}
-		registerConstant(new TokenConstant("pi", Math.PI));
-		registerConstant(new TokenConstant("e", Math.E));
-		basicTokens.add(TokenBracket.LEFT);
-		basicTokens.add(TokenBracket.RIGHT);
-		basicTokens.add(TokenSeparator.COMMA);
+		registerToken(new TokenConstant("pi", Math.PI));
+		registerToken(new TokenConstant("e", Math.E));
+		registerToken(Token.BRACKET_LEFT);
+		registerToken(Token.BRACKET_RIGHT);
+		registerToken(Token.COMMA);
 	}
 	
 	public static double calculate(String input) throws CalculationException {
@@ -65,8 +66,6 @@ public class Calculator {
 		input = input.replaceAll(",-", ",0-");
 		
 		while (!input.isEmpty()) {
-			boolean parsed = false;
-			
 			// Try number
 			Matcher numberMatcher = numberPattern.matcher(input);
 			if (numberMatcher.find()) {
@@ -74,38 +73,27 @@ public class Calculator {
 				input = input.substring(found.length());
 				double value = Double.parseDouble(found);
 				tokens.add(new TokenValue(value));
-				parsed = true;
+			}
+			if (input.isEmpty()) {
+				break;
 			}
 			
-			// Try basic tokens: operators, brackets and commas
-			for (Token token : basicTokens) {
-				if (input.startsWith(token.notation)) {
-					input = input.substring(token.notation.length());
-					tokens.add(token);
-					parsed = true;
-					break;
-				}
+			List<Token> list = tokenFirstCharMap.get(input.charAt(0));
+			if (list == null || list.isEmpty()) {
+				throw new CalculationException("Unknown expression: " + input); 
 			}
-			
-			// Try word tokens: constants and functions.
-			// As they can overlap, only apply token with the longest notation
+			// As tokens in this list overlap, only apply the one with the longest notation
 			Token longestToken = null;
-			for (Token token : wordTokens) {
+			for (Token token : list) {
 				if (input.startsWith(token.notation)) {
 					if (longestToken == null || longestToken.notation.length() < token.notation.length()) {
 						longestToken = token;
 					}
 				}
 			}
-			if (longestToken != null) {
-				input = input.substring(longestToken.notation.length());
-				tokens.add(longestToken);
-				parsed = true;
-			}
-			
-			if (!parsed) {
-				throw new CalculationException("Unknown expression: " + input);
-			}
+			// longestToken is guaranteed to be non-null
+			input = input.substring(longestToken.notation.length());
+			tokens.add(longestToken);
 		}
 		return tokens;
 	}
@@ -116,17 +104,17 @@ public class Calculator {
 			if (headNode.data == null) {
 				headNode.data = curToken;
 			} else {
-				if (curToken == TokenBracket.LEFT) {
-					if (headNode.data instanceof TokenComputable || headNode.data == TokenBracket.LEFT) {
+				if (curToken == Token.BRACKET_LEFT) {
+					if (headNode.data instanceof TokenComputable || headNode.data == Token.BRACKET_LEFT) {
 						Node<Token> child = new Node<Token>(headNode, curToken);
 						headNode.addChild(child);
 						headNode = child;
 					} else {
 						throw new CalculationException("Unexpected opening bracket token");
 					}
-				} else if (curToken == TokenBracket.RIGHT) {
+				} else if (curToken == Token.BRACKET_RIGHT) {
 					// Go up until a matching opening bracket is found:
-					while (headNode.data != TokenBracket.LEFT) {
+					while (headNode.data != Token.BRACKET_LEFT) {
 						headNode = headNode.parent;
 						if (headNode == null) {
 							throw new CalculationException("Unexpected closing bracket token");
@@ -138,10 +126,10 @@ public class Calculator {
 						parent.absorbNode(headNode);
 						headNode = parent;
 					} else {
-						headNode.data = TokenBracket.COMPLETE;
+						headNode.data = Token.BRACKET_COMPLETE;
 					}
 				} else if (curToken instanceof TokenValue) {
-					if (headNode.data == TokenBracket.LEFT) {
+					if (headNode.data == Token.BRACKET_LEFT) {
 						Node<Token> childNode = new Node<Token>(headNode, curToken);
 						headNode.addChild(childNode);
 						headNode = childNode;
@@ -156,11 +144,11 @@ public class Calculator {
 						Node<Token> parentFunctionNode = new Node<Token>(null, curToken);
 						headNode.insertParent(parentFunctionNode);
 						headNode = parentFunctionNode;
-					} else if (headNode.data == TokenBracket.LEFT) {
+					} else if (headNode.data == Token.BRACKET_LEFT) {
 						Node<Token> childFunctionNode = new Node<Token>(null, curToken);
 						headNode.addChild(childFunctionNode);
 						headNode = childFunctionNode;
-					} else if (headNode.data == TokenBracket.COMPLETE) {
+					} else if (headNode.data == Token.BRACKET_COMPLETE) {
 						headNode.data = curToken;
 					} else if (headNode.data instanceof TokenComputable) {
 						TokenComputable headFunction = (TokenComputable)headNode.data;
@@ -182,8 +170,8 @@ public class Calculator {
 					} else {
 						throw new CalculationException("Unexpected function token: " + curToken.notation);
 					}
-				} else if (curToken == TokenSeparator.COMMA) {
-					if (headNode.parent != null && headNode.parent.data == TokenBracket.LEFT) {
+				} else if (curToken == Token.COMMA) {
+					if (headNode.parent != null && headNode.parent.data == Token.BRACKET_LEFT) {
 						headNode = headNode.parent;
 					} else {
 						throw new CalculationException("Unexpected comma token");
