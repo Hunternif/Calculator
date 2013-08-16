@@ -6,6 +6,7 @@ import hunternif.rpn.token.TokenComputable;
 import hunternif.rpn.token.TokenConstant;
 import hunternif.rpn.token.TokenFunction;
 import hunternif.rpn.token.TokenOperator;
+import hunternif.rpn.token.TokenSpecial;
 import hunternif.rpn.token.TokenValue;
 import hunternif.util.Tree;
 import hunternif.util.Tree.Node;
@@ -43,15 +44,15 @@ public class Calculator {
 		}
 		registerToken(new TokenConstant("pi", Math.PI));
 		registerToken(new TokenConstant("e", Math.E));
-		registerToken(Token.BRACKET_LEFT);
-		registerToken(Token.BRACKET_RIGHT);
-		registerToken(Token.COMMA);
+		registerToken(TokenSpecial.BRACKET_LEFT);
+		registerToken(TokenSpecial.BRACKET_RIGHT);
+		registerToken(TokenSpecial.COMMA);
 	}
 	
 	public static double calculate(String input) throws CalculationException {
 		List<Token> tokens = tokenize(input);
 		Tree<Token> tree = buildSyntaxTree(tokens);
-		List<Token> rpnSequence = tree.sequentializePostOrder(); 
+		List<Token> rpnSequence = tree.sequentializePostOrder();
 		return calculateRPN(rpnSequence);
 	}
 	
@@ -62,9 +63,11 @@ public class Calculator {
 		
 		// Add the argument '0' to unary operator '-':
 		input = input.replaceAll("\\A-", "0-");
-		input = input.replaceAll("\\(-", "(0-");
+		input = input.replaceAll("\\(", "(0+"); //HACK!
+		input = input.replaceAll("\\+-", "-");
 		input = input.replaceAll(",-", ",0-");
 		
+		Token lastToken = null;
 		while (!input.isEmpty()) {
 			// Try number
 			Matcher numberMatcher = numberPattern.matcher(input);
@@ -72,7 +75,8 @@ public class Calculator {
 				String found = numberMatcher.group(1);
 				input = input.substring(found.length());
 				double value = Double.parseDouble(found);
-				tokens.add(new TokenValue(value));
+				lastToken = new TokenValue(value);
+				tokens.add(lastToken);
 			}
 			if (input.isEmpty()) {
 				break;
@@ -92,8 +96,13 @@ public class Calculator {
 				}
 			}
 			// longestToken is guaranteed to be non-null
+			if (lastToken instanceof TokenFunction && longestToken == TokenSpecial.BRACKET_LEFT) {
+				longestToken = TokenSpecial.BRACKET_FUNCTION_LEFT;
+			} else {
+				tokens.add(longestToken);
+				lastToken = longestToken;
+			}
 			input = input.substring(longestToken.notation.length());
-			tokens.add(longestToken);
 		}
 		return tokens;
 	}
@@ -101,83 +110,35 @@ public class Calculator {
 	protected static Tree<Token> buildSyntaxTree(List<Token> list) throws CalculationException {
 		Node<Token> headNode = new Node<Token>(null, null);
 		for (Token curToken : list) {
-			if (headNode.data == null) {
-				headNode.data = curToken;
+			if (curToken == TokenSpecial.BRACKET_LEFT) {
+				Node<Token> child = new Node<Token>(null, null);
+				headNode.addChild(child);
+				headNode = child;
+			} else if (curToken == TokenSpecial.BRACKET_RIGHT) {
+				if (headNode.parent != null) {
+					headNode = headNode.parent;
+				}
 			} else {
-				if (curToken == Token.BRACKET_LEFT) {
-					if (headNode.data instanceof TokenComputable || headNode.data == Token.BRACKET_LEFT) {
-						Node<Token> child = new Node<Token>(headNode, curToken);
-						headNode.addChild(child);
-						headNode = child;
+				if (headNode.data == null) {
+					headNode.data = curToken;
+				} else if (headNode.data.precedence < curToken.precedence) {
+					Node<Token> curNode = new Node<Token>(null, curToken);
+					if (curToken instanceof TokenComputable && ((TokenComputable)curToken).isInfix()) {
+						Node<Token> childValueNode = headNode.children.get(headNode.children.size() - 1);
+						headNode.children.remove(childValueNode);
+						curNode.addChild(childValueNode);
+						headNode.addChild(curNode);
+						headNode = curNode;
 					} else {
-						throw new CalculationException("Unexpected opening bracket token");
-					}
-				} else if (curToken == Token.BRACKET_RIGHT) {
-					// Go up until a matching opening bracket is found:
-					while (headNode.data != Token.BRACKET_LEFT) {
-						headNode = headNode.parent;
-						if (headNode == null) {
-							throw new CalculationException("Unexpected closing bracket token");
+						headNode.addChild(curNode);
+						if (!(curToken instanceof TokenValue) || headNode.data instanceof TokenFunction) {
+							headNode = curNode;
 						}
-					}
-					if (headNode.parent != null && headNode.parent.data instanceof TokenComputable
-							&& !((TokenComputable)headNode.parent.data).isInfix()) {
-						Node<Token> parent = headNode.parent;
-						parent.absorbNode(headNode);
-						headNode = parent;
-					} else {
-						headNode.data = Token.BRACKET_COMPLETE;
-					}
-				} else if (curToken instanceof TokenValue) {
-					if (headNode.data == Token.BRACKET_LEFT) {
-						Node<Token> childNode = new Node<Token>(headNode, curToken);
-						headNode.addChild(childNode);
-						headNode = childNode;
-					} else if (headNode.data instanceof TokenComputable) {
-						Node<Token> childNode = new Node<Token>(headNode, curToken);
-						headNode.addChild(childNode);
-					} else {
-						throw new CalculationException("Unexpected value token: " + curToken.notation);
-					}
-				} else if (curToken instanceof TokenComputable) {
-					if (headNode.data instanceof TokenValue) {
-						Node<Token> parentFunctionNode = new Node<Token>(null, curToken);
-						headNode.insertParent(parentFunctionNode);
-						headNode = parentFunctionNode;
-					} else if (headNode.data == Token.BRACKET_LEFT) {
-						Node<Token> childFunctionNode = new Node<Token>(null, curToken);
-						headNode.addChild(childFunctionNode);
-						headNode = childFunctionNode;
-					} else if (headNode.data == Token.BRACKET_COMPLETE) {
-						headNode.data = curToken;
-					} else if (headNode.data instanceof TokenComputable) {
-						TokenComputable headFunction = (TokenComputable)headNode.data;
-						TokenComputable curFunction = (TokenComputable) curToken;
-						if (headFunction.precedence < curFunction.precedence) {
-							Node<Token> childFunctionNode = new Node<Token>(null, curFunction);
-							if (curFunction.isInfix()) {
-								Node<Token> childValueNode = headNode.children.get(headNode.children.size() - 1);
-								headNode.children.remove(childValueNode);
-								childFunctionNode.addChild(childValueNode);
-							}
-							headNode.addChild(childFunctionNode);
-							headNode = childFunctionNode;
-						} else {
-							Node<Token> parentFunctionNode = new Node<Token>(null, curFunction);
-							headNode.insertParent(parentFunctionNode);
-							headNode = parentFunctionNode;
-						}
-					} else {
-						throw new CalculationException("Unexpected function token: " + curToken.notation);
-					}
-				} else if (curToken == Token.COMMA) {
-					if (headNode.parent != null && headNode.parent.data == Token.BRACKET_LEFT) {
-						headNode = headNode.parent;
-					} else {
-						throw new CalculationException("Unexpected comma token");
 					}
 				} else {
-					throw new CalculationException("Unexpected token: " + curToken.notation);
+					Node<Token> curNode = new Node<Token>(null, curToken);
+					headNode.insertParent(curNode);
+					headNode = curNode;
 				}
 			}
 		}
