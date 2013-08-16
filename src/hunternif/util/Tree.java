@@ -2,7 +2,6 @@ package hunternif.util;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
 public class Tree<T> {
 	public Node<T> root;
@@ -56,12 +55,18 @@ public class Tree<T> {
 			children.remove(node);
 		}
 		
-		public Stack<T> toStackPostOrder(Stack<T> stack) {
-			stack.push(data);
+		public void sequentializePreOrder(List<T> sequence) {
+			sequence.add(data);
 			for (Node<T> child : children) {
-				child.toStackPostOrder(stack);
+				child.sequentializePreOrder(sequence);
 			}
-			return stack;
+		}
+		
+		public void sequentializePostOrder(List<T> sequence) {
+			for (Node<T> child : children) {
+				child.sequentializePostOrder(sequence);
+			}
+			sequence.add(data);
 		}
 		
 		@Override
@@ -78,9 +83,10 @@ public class Tree<T> {
 		}
 	}
 	
-	public Stack<T> toStackPostOrder() {
-		Stack<T> stack = new Stack<>(); 
-		return root.toStackPostOrder(stack);
+	public List<T> sequentializePostOrder() {
+		List<T> sequence = new ArrayList<>(); 
+		root.sequentializePostOrder(sequence);
+		return sequence;
 	}
 	
 	@Override

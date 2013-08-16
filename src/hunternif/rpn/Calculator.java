@@ -50,8 +50,8 @@ public class Calculator {
 	public static double calculate(String input) throws CalculationException {
 		List<Token> tokens = tokenize(input);
 		Tree<Token> tree = buildSyntaxTree(tokens);
-		Stack<Token> rpnStack = tree.toStackPostOrder(); 
-		return calculateRPN(rpnStack);
+		List<Token> rpnSequence = tree.sequentializePostOrder(); 
+		return calculateRPN(rpnSequence);
 	}
 	
 	protected static List<Token> tokenize(String input) throws CalculationException {
@@ -202,10 +202,9 @@ public class Calculator {
 		return tree;
 	}
 		
-	protected static double calculateRPN(Stack<Token> baseRPNStack) throws CalculationException {
+	protected static double calculateRPN(List<Token> rpnSequence) throws CalculationException {
 		Stack<Token> calcStack = new Stack<>();
-		while (!baseRPNStack.isEmpty()) {
-			Token node = baseRPNStack.pop();
+		for (Token node : rpnSequence) {
 			if (node instanceof TokenValue) {
 				calcStack.push(node);
 			} else if (node instanceof TokenComputable) {
@@ -217,7 +216,7 @@ public class Calculator {
 				
 				// Read params for the function from the stack
 				double[] params = new double[function.args];
-				for (int i = 0; i < function.args; i++) {
+				for (int i = function.args-1; i >= 0; i--) {
 					Token paramNode = calcStack.pop();
 					if (!(paramNode instanceof TokenValue)) {
 						throw new CalculationException("Parameter node is not a value");
@@ -228,7 +227,7 @@ public class Calculator {
 				// Push back into the stack the result of the function call
 				double result = function.compute(params);
 				calcStack.push(new TokenValue(result));
-			}
+			} // Disregard any tokens other than Value or Computable
 		}
 		if (calcStack.size() != 1) {
 			throw new CalculationException("Stack size is " + calcStack.size());
