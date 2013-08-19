@@ -92,6 +92,8 @@ public class CalculatorTest {
 	public void customFunction() throws CalculationException {
 		Calculator.registerToken(new TestFunction());
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(1,2,3)"));
+		Assert.assertEquals(3d, Calculator.calculate("maxof3(exp(0-log(2, 3)), max(0, 1), 3)"));
+		Assert.assertEquals(3d, Calculator.calculate("maxof3(3, max(0, 1), exp(0-log(2, 3)))"));
 		Assert.assertEquals(3d, Calculator.calculate("maxof3(max(0, 1), exp(0-log(2, 3)), 3)"));
 	}
 	
