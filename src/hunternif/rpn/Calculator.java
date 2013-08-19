@@ -63,11 +63,10 @@ public class Calculator {
 		
 		// Add the argument '0' to unary operator '-':
 		input = input.replaceAll("\\A-", "0-");
-		input = input.replaceAll("\\(", "(0+"); //HACK!
-		input = input.replaceAll("\\+-", "-");
+		//input = input.replaceAll("\\(", "(0+"); //HACK!
+		input = input.replaceAll("\\(-", "(0-");
 		input = input.replaceAll(",-", ",0-");
 		
-		Token lastToken = null;
 		while (!input.isEmpty()) {
 			// Try number
 			Matcher numberMatcher = numberPattern.matcher(input);
@@ -75,8 +74,7 @@ public class Calculator {
 				String found = numberMatcher.group(1);
 				input = input.substring(found.length());
 				double value = Double.parseDouble(found);
-				lastToken = new TokenValue(value);
-				tokens.add(lastToken);
+				tokens.add(new TokenValue(value));
 			}
 			if (input.isEmpty()) {
 				break;
@@ -96,13 +94,12 @@ public class Calculator {
 				}
 			}
 			// longestToken is guaranteed to be non-null
-			if (lastToken instanceof TokenFunction && longestToken == TokenSpecial.BRACKET_LEFT) {
-				longestToken = TokenSpecial.BRACKET_FUNCTION_LEFT;
-			} else {
-				tokens.add(longestToken);
-				lastToken = longestToken;
-			}
+			tokens.add(longestToken);
 			input = input.substring(longestToken.notation.length());
+			// Remove the first "(" after function name
+			if (longestToken instanceof TokenFunction) {
+				input = input.substring(1);
+			}
 		}
 		return tokens;
 	}
@@ -116,6 +113,13 @@ public class Calculator {
 				headNode = child;
 			} else if (curToken == TokenSpecial.BRACKET_RIGHT) {
 				if (headNode.parent != null) {
+					headNode = headNode.parent;
+					if (headNode.data == TokenSpecial.COMMA && headNode.parent != null){
+						headNode = headNode.parent;
+					}
+				}
+			} else if (curToken == TokenSpecial.COMMA) {
+				if (headNode.data != TokenSpecial.COMMA && headNode.parent != null) {
 					headNode = headNode.parent;
 				}
 			} else {
@@ -139,6 +143,18 @@ public class Calculator {
 					Node<Token> curNode = new Node<Token>(null, curToken);
 					headNode.insertParent(curNode);
 					headNode = curNode;
+				}
+				// Nest a "," token under multi-argument functions
+				if (curToken instanceof TokenFunction) {
+					if (((TokenFunction)curToken).args > 1) {
+						Node<Token> commaNode = new Node<Token>(null, TokenSpecial.COMMA);
+						headNode.addChild(commaNode);
+						headNode = commaNode;
+					} else {
+						Node<Token> child = new Node<Token>(null, null);
+						headNode.addChild(child);
+						headNode = child;
+					}
 				}
 			}
 		}
