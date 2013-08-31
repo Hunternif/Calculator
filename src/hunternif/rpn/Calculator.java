@@ -91,7 +91,9 @@ public class Calculator {
 					}
 				}
 			}
-			// longestToken is guaranteed to be non-null
+			if (longestToken == null) {
+				throw new CalculationException("Unrecognized token: " + input);
+			}
 			input = input.substring(longestToken.notation.length());
 			tokens.add(longestToken);
 		}
